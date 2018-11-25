@@ -30,6 +30,10 @@ parser.add_argument('--time_dim', type=int, default=201, metavar='N',
                     help='time dimension')
 parser.add_argument('--epochs', type=int, default=16, metavar='N',
                     help='number of epochs to train (default: 10)')
+parser.add_argument('--epoch_start', type=int, default=0, metavar='N',
+                    help='start num for epoch')
+parser.add_argument('--train_from', type=str, default=None, metavar='N',
+                    help='model to train from')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
@@ -369,13 +373,24 @@ def main():
         model.cuda()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     savefile='EC'+vae_type + '_' + architecture + '_' + input_type
+
+    if args.train_from is not None:
+
+        print("=> loading checkpoint '{}'".format(args.train_from))
+        checkpoint = torch.load(args.train_from)
+        args.epoch_start = checkpoint['epoch']
+
+        model.load_state_dict(checkpoint['state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        print("=> loaded checkpoint '{}' (epoch {})"
+                  .format(args.train_from, checkpoint['epoch']))
     try:
         lr = args.lr
         #start = time.time()
         train_error = np.zeros(args.epochs)
         #validation_scores = np.zeros(args.epochs)
         test_error = np.zeros(args.epochs)
-        for epoch in range(args.epochs):
+        for epoch in range(args.epoch_start, args.epochs):
 
             train_error[epoch] = train(epoch, train_loader, model, optimizer)
             if (epoch % 250 == 0):
@@ -390,13 +405,14 @@ def main():
             test_error[epoch] = test(epoch, test_loader, model, optimizer)
             # if (epoch % 10 == 0):
             # test_error = torch.FloatTensor([test_error])
-            if epoch == 0:
 
-                min_err = test_error[epoch]
+            if epoch == args.epoch_start:
+
+                min_err = test_error[args.epoch_start]
             else:
 
                 if epoch > 400 and (test_error[epoch] < min_err):
-                    min_err = test_error
+                    min_err = test_error[epoch]
                     save_checkpoint({
                         'args': args,
                         'epoch': epoch,
