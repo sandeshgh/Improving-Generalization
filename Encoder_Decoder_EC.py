@@ -2,6 +2,16 @@ from __future__ import print_function
 import argparse
 import torch
 #import torch.utils.data
+import torch._utils
+try:
+    torch._utils._rebuild_tensor_v2
+except AttributeError:
+    def _rebuild_tensor_v2(storage, storage_offset, size, stride, requires_grad, backward_hooks):
+        tensor = torch._utils._rebuild_tensor(storage, storage_offset, size, stride)
+        tensor.requires_grad = requires_grad
+        tensor._backward_hooks = backward_hooks
+        return tensor
+    torch._utils._rebuild_tensor_v2 = _rebuild_tensor_v2
 
 import torch.utils.data as data_utils
 import uuid
@@ -308,7 +318,7 @@ def test(epoch, test_loader, model, optimizer):
 
         #loss = torch.sum((muTheta - data).pow(2)) / (201*batch_size*1862)
 
-        test_loss += loss.item()
+        test_loss += loss.data[0]
         #print('Test Epoch: {}, batch:{}'.format(epoch,j))
 
     if epoch % 50 == 0:
