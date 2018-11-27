@@ -62,7 +62,8 @@ parser.add_argument('--path', type=str, default='EC1862/', metavar='N',
                     help='path to dataset')
 parser.add_argument('--lr', type=float, default=1e-4, metavar='N',
                     help='Learning rate')
-
+parser.add_argument('--beta', type=float, default=1, metavar='N',
+                    help='beta factor controlling two mutual information terms')
 parser.add_argument('--decay', type=float, default=1.0, metavar='N',
                     help='decay rate')
 
