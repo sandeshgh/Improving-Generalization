@@ -384,7 +384,7 @@ def main():
     if args.cuda:
         model.cuda()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    savefile='EC'+vae_type + '_' + architecture + '_' +'_18_22_beta'+
+    savefile='EC'+vae_type + '_' + architecture + '_' +'_18_22_beta'+str(args.beta)
 
     if args.train_from is not None:
 
