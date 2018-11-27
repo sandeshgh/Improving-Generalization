@@ -62,6 +62,7 @@ parser.add_argument('--path', type=str, default='EC1862/', metavar='N',
                     help='path to dataset')
 parser.add_argument('--lr', type=float, default=1e-4, metavar='N',
                     help='Learning rate')
+
 parser.add_argument('--decay', type=float, default=1.0, metavar='N',
                     help='decay rate')
 
@@ -342,7 +343,7 @@ def main():
     input_dim=args.lead_dim // 2
     mid_input=30
 
-    trainData=SimulatedDataEC(list(range(15,25)))
+    trainData=SimulatedDataEC(list(range(18,23)))
     #N_train=trainData.len()
 
     train_loader = data_utils.DataLoader(trainData, batch_size=args.batchsize,
@@ -382,7 +383,7 @@ def main():
     if args.cuda:
         model.cuda()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    savefile='EC'+vae_type + '_' + architecture + '_' + input_type
+    savefile='EC'+vae_type + '_' + architecture + '_' +'_18_22_beta'+
 
     if args.train_from is not None:
 
