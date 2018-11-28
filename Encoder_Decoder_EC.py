@@ -332,7 +332,7 @@ def main():
     input_dim=args.lead_dim // 2
     mid_input=30
 
-    trainData=SimulatedDataEC(list(range(15,25)))
+    trainData=SimulatedDataEC(list(range(18,23)))
     #N_train=trainData.len()
 
     train_loader = data_utils.DataLoader(trainData, batch_size=args.batchsize,
@@ -372,7 +372,7 @@ def main():
     if args.cuda:
         model.cuda()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    savefile='EC'+vae_type + '_' + architecture + '_' + input_type
+    savefile='EC'+vae_type + '_' + architecture + '_' + input_type+'_18_22'
 
     if args.train_from is not None:
 
