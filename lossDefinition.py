@@ -126,7 +126,7 @@ def loss_function(muTheta, logvarTheta, x, mu, logvar, annealParam, args):
     # Normalise by same number of elements as in reconstruction
     KLD /= (T * N * B)
 
-    return BCE + KLD
+    return BCE + args.beta*KLD
 
 def loss_function_deterministic(muTheta, x, args):
 

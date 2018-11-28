@@ -2,6 +2,16 @@ from __future__ import print_function
 import argparse
 import torch
 #import torch.utils.data
+import torch._utils
+try:
+    torch._utils._rebuild_tensor_v2
+except AttributeError:
+    def _rebuild_tensor_v2(storage, storage_offset, size, stride, requires_grad, backward_hooks):
+        tensor = torch._utils._rebuild_tensor(storage, storage_offset, size, stride)
+        tensor.requires_grad = requires_grad
+        tensor._backward_hooks = backward_hooks
+        return tensor
+    torch._utils._rebuild_tensor_v2 = _rebuild_tensor_v2
 
 import torch.utils.data as data_utils
 import uuid
@@ -52,6 +62,8 @@ parser.add_argument('--path', type=str, default='EC1862/', metavar='N',
                     help='path to dataset')
 parser.add_argument('--lr', type=float, default=1e-4, metavar='N',
                     help='Learning rate')
+parser.add_argument('--beta', type=float, default=1, metavar='N',
+                    help='beta factor controlling two mutual information terms')
 parser.add_argument('--decay', type=float, default=1.0, metavar='N',
                     help='decay rate')
 
@@ -308,7 +320,7 @@ def test(epoch, test_loader, model, optimizer):
 
         #loss = torch.sum((muTheta - data).pow(2)) / (201*batch_size*1862)
 
-        test_loss += loss.item()
+        test_loss += loss.data[0]
         #print('Test Epoch: {}, batch:{}'.format(epoch,j))
 
     if epoch % 50 == 0:
@@ -372,7 +384,9 @@ def main():
     if args.cuda:
         model.cuda()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    savefile='EC'+vae_type + '_' + architecture + '_' + input_type+'_18_22'
+
+    savefile='EC'+vae_type + '_' + architecture + '_' +'_18_22_beta'+str(args.beta)
+
 
     if args.train_from is not None:
 
