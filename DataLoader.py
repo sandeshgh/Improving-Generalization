@@ -112,3 +112,55 @@ class SimulatedDataEC(data_utils.Dataset):
 
 
         return signals, labels
+
+
+class SimulatedDataEC_2factor(data_utils.Dataset):
+    """
+    Creates a Pytorch Dataset for ImageNet.
+    """
+
+    def __init__(self, index_i,index_j, root='EC1862/ECG_2factor/'):
+        self.root = root
+        data=torch.load(root + 'Ecg_{}_{}.pth'.format(index_i[0],index_j[0]))
+
+
+        #length_index=len(index)
+        signal_full=data['Ecg']
+        (_, l, t) = signal_full.shape
+        signals = self.shorten(signal_full,l,t)
+        labels = (data['label'])
+
+        for ind in index_i:
+
+            for j in index_j:
+                if not (ind ==index_i[0] and j==index_j[0]):
+                    data_i=torch.load(root + 'Ecg_{}_{}.pth'.format(index_i[0],index_j[0]))
+                    signals=torch.cat((signals,self.shorten(data_i['Ecg'],l,t)),0)
+                    labels=torch.cat((labels,(data_i['label'])),0)
+
+
+        self.signals = signals
+        self.labels = labels
+
+        self.n=signals.shape[0]
+        #print('Labels:', labels[0:3,:])
+        #print('Finished')
+
+    def shorten(self, T,l,t):
+        T1= T[:,list(range(1,l,2)),:]
+
+        return T1[:,:,list(range(1,t,2))]
+
+
+
+    def __len__(self):
+        return self.n
+
+
+    def __getitem__(self, index):
+
+        signals=self.signals[index,:,:]
+        labels=self.labels[index]
+
+
+        return signals, labels[0]

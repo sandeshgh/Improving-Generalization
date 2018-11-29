@@ -23,7 +23,8 @@ import math
 from torch import nn, optim
 from torch.autograd import Variable
 #from dataLoader import SimulatedDataset
-from DataLoader import SimulatedDataEC
+from DataLoader import SimulatedDataEC,SimulatedDataEC_2factor
+
 import matplotlib.pyplot as plt
 
 from lossDefinition import loss_function, multip, loss_function_deterministic
@@ -344,12 +345,12 @@ def main():
     input_dim=args.lead_dim // 2
     mid_input=30
 
-    trainData=SimulatedDataEC(list(range(18,23)))
+    trainData=SimulatedDataEC_2factor(list(range(4,8)),list(range(5,8)))
     #N_train=trainData.len()
 
     train_loader = data_utils.DataLoader(trainData, batch_size=args.batchsize,
                                          shuffle=True)
-    testData=SimulatedDataEC([26])
+    testData=SimulatedDataEC_2factor([1],[6])
     #N_test=testData.len()
     test_loader = data_utils.DataLoader(testData, batch_size=args.batchsize,
                                        shuffle=True)
@@ -385,7 +386,7 @@ def main():
         model.cuda()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
-    savefile='EC'+vae_type + '_' + architecture + '_' +'_18_22_beta'+str(args.beta)
+    savefile='EC'+vae_type + '_' + architecture +'i_4_7_beta'+str(args.beta)
 
 
     if args.train_from is not None:
@@ -407,7 +408,7 @@ def main():
         for epoch in range(args.epoch_start, args.epochs):
 
             train_error[epoch] = train(epoch, train_loader, model, optimizer)
-            if (epoch % 400 == 0):
+            if (epoch % 250 == 0):
                 save_checkpoint({
                     'args':args,
                     'epoch': epoch,
