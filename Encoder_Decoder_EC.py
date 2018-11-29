@@ -405,7 +405,7 @@ def main():
         for epoch in range(args.epoch_start, args.epochs):
 
             train_error[epoch] = train(epoch, train_loader, model, optimizer)
-            if (epoch % 250 == 0):
+            if (epoch % 400 == 0):
                 save_checkpoint({
                     'args':args,
                     'epoch': epoch,
