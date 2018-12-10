@@ -2,16 +2,6 @@ from __future__ import print_function
 import argparse
 import torch
 #import torch.utils.data
-import torch._utils
-try:
-    torch._utils._rebuild_tensor_v2
-except AttributeError:
-    def _rebuild_tensor_v2(storage, storage_offset, size, stride, requires_grad, backward_hooks):
-        tensor = torch._utils._rebuild_tensor(storage, storage_offset, size, stride)
-        tensor.requires_grad = requires_grad
-        tensor._backward_hooks = backward_hooks
-        return tensor
-    torch._utils._rebuild_tensor_v2 = _rebuild_tensor_v2
 
 import torch.utils.data as data_utils
 import uuid
@@ -23,8 +13,7 @@ import math
 from torch import nn, optim
 from torch.autograd import Variable
 #from dataLoader import SimulatedDataset
-from DataLoader import SimulatedDataEC,SimulatedDataEC_2factor
-
+from DataLoader import SimulatedDataset
 import matplotlib.pyplot as plt
 
 from lossDefinition import loss_function, multip, loss_function_deterministic
@@ -33,11 +22,11 @@ from modelDefinition import svsVAE, svsVAE_deterministic, svsLanguage, svsLangua
 parser = argparse.ArgumentParser(description='Bayesian TransCoder')
 parser.add_argument('--batchsize', type=int, default=32, metavar='N',
                     help='input batch size for training (default: 10)')
-parser.add_argument('--node_dim', type=int, default=1862, metavar='N',
+parser.add_argument('--node_dim', type=int, default=2097, metavar='N',
                     help='Dimension of TMP')
-parser.add_argument('--lead_dim', type=int, default=120, metavar='N',
+parser.add_argument('--lead_dim', type=int, default=12, metavar='N',
                     help='Dimension of ECG lead')
-parser.add_argument('--time_dim', type=int, default=201, metavar='N',
+parser.add_argument('--time_dim', type=int, default=246, metavar='N',
                     help='time dimension')
 parser.add_argument('--epochs', type=int, default=16, metavar='N',
                     help='number of epochs to train (default: 10)')
@@ -59,12 +48,10 @@ parser.add_argument('--validation_style', type=str, default='validation_exc', me
                     help='validation_exc or validation_infarct')
 parser.add_argument('--dataset', type=str, default='EC1862', metavar='N',
                     help='EC1862 or DC2144 or AW1898')
-parser.add_argument('--path', type=str, default='EC1862/', metavar='N',
+parser.add_argument('--path', type=str, default='Input_data/', metavar='N',
                     help='path to dataset')
 parser.add_argument('--lr', type=float, default=1e-4, metavar='N',
                     help='Learning rate')
-parser.add_argument('--beta', type=float, default=1, metavar='N',
-                    help='beta factor controlling two mutual information terms')
 parser.add_argument('--decay', type=float, default=1.0, metavar='N',
                     help='decay rate')
 
@@ -138,55 +125,43 @@ def plotTMP(x_r, x, epoch):
 
 def restructure(Y):
     # This is batch by Long vector
-    (B,N,T)=Y.size()
+    (B,N)=Y.size()
 
-    ####Plot starts------------
-    # x = Y[1, :, :]
-    #
-    # plt.figure(1)
-    # plt.subplot(211)
-    # plt.plot(x[20:50, :].transpose(0,1).numpy())
-    # plt.show()
-    #
 
-    ##Plot ends
+    Y=Y.contiguous().view(B,-1,args.time_dim)
+    (b,n,t)=Y.size()
+    Y=Y[:,:,list(range(1,t,2))]
 
     return Y.permute(2,0,1)
 
+    #Y=Y.contiguous().view(B,args.time_dim,-1)
+    #(b,t,n)=Y.size()
+    #Y=Y[:,list(range(1,t,2)),:]
+
+    #return Y.permute(1,0,2)
 
 
 def readBatch(index, path):
     index=list(index.numpy())
     for ind in index:
-        TrainData = sio.loadmat(path + 'Tmp' + str(ind) + '.mat')
-        Ut = TrainData['U']
-        #(a, b) = Ut.shape
-        #Ut = np.reshape(Ut, (b, a), order='F')
+        TrainData = sio.loadmat(path + 'TMP' + str(ind) + '.mat')
+        Ut = TrainData['T']
+        (a, b) = Ut.shape
+        Ut = np.reshape(Ut, (b, a), order='F')
         (a, b) = Ut.shape
 
         # print('The size of U is: ', a,',',b)
         if a == args.node_dim:
             U_np = Ut.transpose()
-
+            seq_length = b
         elif b == args.node_dim:
             U_np = Ut
-
+            seq_length = a
         else:
             print('The TMP matrix does not have proper dimension')
 
-        discrete_time=range(1,args.time_dim,2)
-        U_np=U_np[discrete_time,:]
-        seq_length=U_np.shape[0]
+        #discrete_time=range(0,args.time_dim,2)
         #discrete_node=range(0,args.node_dim,3)
-
-        ####Plot starts------------
-
-        # plt.figure(1)
-        # plt.subplot(211)
-        # plt.plot(U_np[:, 50:60])
-        # plt.show()
-
-        ##Plot ends
 
         zz = torch.FloatTensor(U_np)
         U = zz.contiguous().view(seq_length, 1, -1)
@@ -205,9 +180,9 @@ def train(epoch, train_loader, model, optimizer):
     pathTmp=args.path+'TMP/'
     N=len(train_loader.dataset)
 
-    for batch_index, (outY, label) in enumerate(train_loader):
+    for batch_index, (outY, label, tmp_index) in enumerate(train_loader):
         #tmp_idx=tmp_index.data
-        outData = readBatch(label, pathTmp)
+        outData = readBatch(tmp_index, pathTmp)
         outY = restructure(outY)
         data = Variable(outData)  # sequence length, batch size, input size
         Y = Variable(outY)
@@ -282,7 +257,7 @@ def test(epoch, test_loader, model, optimizer):
     pathTmp=args.path+'TMP/'
     N=len(test_loader.dataset)
 
-    for batch_index, (outY, tmp_index) in enumerate(test_loader):
+    for batch_index, (outY, label, tmp_index) in enumerate(test_loader):
         outData = readBatch(tmp_index, pathTmp)
         outY=restructure(outY)
         data = Variable(outData)  # sequence length, batch size, input size
@@ -321,7 +296,7 @@ def test(epoch, test_loader, model, optimizer):
 
         #loss = torch.sum((muTheta - data).pow(2)) / (201*batch_size*1862)
 
-        test_loss += loss.data[0]
+        test_loss += loss.item()
         #print('Test Epoch: {}, batch:{}'.format(epoch,j))
 
     if epoch % 50 == 0:
@@ -338,19 +313,19 @@ def main():
 
     #ECG_dim = 120
     latent_dim = 12
-    TMP_dim=1862
-    timestep=100
+    TMP_dim=2097
+    timestep=123
     #print('segment size:', segment_size)
 
-    input_dim=args.lead_dim // 2
-    mid_input=30
+    input_dim=args.lead_dim
+    mid_input=12
 
-    trainData=SimulatedDataEC_2factor(list(range(3,10)),list(range(5,8)))
+    trainData=SimulatedDataset(list(range(7)))
     #N_train=trainData.len()
 
     train_loader = data_utils.DataLoader(trainData, batch_size=args.batchsize,
                                          shuffle=True)
-    testData=SimulatedDataEC_2factor([2],[6])
+    testData=SimulatedDataset([8])
     #N_test=testData.len()
     test_loader = data_utils.DataLoader(testData, batch_size=args.batchsize,
                                        shuffle=True)
@@ -385,9 +360,7 @@ def main():
     if args.cuda:
         model.cuda()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
-
-    savefile='EC'+vae_type + '_' + architecture +'i_3_9_beta'+str(args.beta)
-
+    savefile=vae_type + '_' + architecture + '_' + input_type
 
     if args.train_from is not None:
 
@@ -408,7 +381,7 @@ def main():
         for epoch in range(args.epoch_start, args.epochs):
 
             train_error[epoch] = train(epoch, train_loader, model, optimizer)
-            if (epoch % 450 == 0):
+            if (epoch % 250 == 0):
                 save_checkpoint({
                     'args':args,
                     'epoch': epoch,
@@ -420,7 +393,6 @@ def main():
             test_error[epoch] = test(epoch, test_loader, model, optimizer)
             # if (epoch % 10 == 0):
             # test_error = torch.FloatTensor([test_error])
-
             if epoch == args.epoch_start:
 
                 min_err = test_error[args.epoch_start]
